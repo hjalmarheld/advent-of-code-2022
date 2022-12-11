@@ -3,6 +3,30 @@ Just for fun, ugly solutions essentially guaranteed.
 
 https://adventofcode.com/
 
+Clicks links below for solutions.
+
+[Day 1](##Day-1)
+
+[Day 2](##Day-2)
+
+[Day 3](##Day-3)
+
+[Day 4](##Day-4)
+
+[Day 5](##Day-5)
+
+[Day 6](##Day-6)
+
+[Day 7](##Day-7)
+
+[Day 8](##Day-8)
+
+[Day 9](##Day-9)
+
+[Day 10](##Day-10)
+
+[Day 11](##Day-11)
+
 
 ```python
 # import used thus far, trying to keep 
