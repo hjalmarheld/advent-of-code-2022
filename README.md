@@ -1,7 +1,18 @@
+# advent-of-code-2022
+Just for fun, ugly solutions essentially guaranteed.
+
+https://adventofcode.com/
+
+
 ```python
+# import used thus far, trying to keep 
+# to minimum, without needing to write
+# excessive code...
+
 import re
 from copy import deepcopy
-from tqdm import tqdm
+from math import lcm
+from functools import reduce
 ```
 
 ## Day 1
@@ -638,12 +649,6 @@ for row in screen:
 
 
 ```python
-from math import lcm
-from functools import reduce
-```
-
-
-```python
 class Monkey:
   """
   Fully fledged item throwing
@@ -743,7 +748,7 @@ class Jungle(Monkey):
         for monkey in self.monkeys: 
           print('Monkey %s :' % monkey.number, monkey.items)
 
-  def monkey_business(self):
+  def monkey_business(self) -> int:
     """
     Get current of monkey business.
     """
