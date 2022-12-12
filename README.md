@@ -27,6 +27,7 @@ https://adventofcode.com/
 
 [Day 11](#day-11)
 
+[Day 12](#day-12)
 
 
 ```python
@@ -524,13 +525,15 @@ for step in input.splitlines():
         elif dir=='D':
             head[1]-=1
         
-        # check if diagonal movement
-        diag = max(
+        # check if diagonal movement,
+        # this happens when manhattan
+        # distance is > 2.
+        diag = sum([
             abs(head[0]-tail[0]),
             abs(head[0]-tail[0]),
             abs(head[1]-tail[1]),
             abs(head[1]-tail[1])
-            ) > 1
+            ]) > 2
         
         # move tail
         if diag:
@@ -552,12 +555,11 @@ for step in input.splitlines():
             if head[1]-tail[1]<-1:
                 tail[1]-=1 
 
-        # check if new tail position
-        if tail not in visited:
-            visited.append(tail[:])
+        # add tail position
+        visited.append(tuple(tail[:]))
 
 # question 1
-print(len(visited))
+print(len(set(visited)))
 
 tails = [[0, 0] for _ in range(10)]
 visited = []
@@ -577,12 +579,12 @@ for step in input.splitlines():
             tails[0][1]-=1
         
         for i in range(1, 10):
-            diag = max(
+            diag = sum([
                 abs(tails[i-1][0]-tails[i][0]),
                 abs(tails[i-1][0]-tails[i][0]),
                 abs(tails[i-1][1]-tails[i][1]),
                 abs(tails[i-1][1]-tails[i][1])
-                ) > 1
+                ]) > 2
             
             if diag:
                 if tails[i-1][0]>tails[i][0]:
@@ -604,14 +606,13 @@ for step in input.splitlines():
                     tails[i][1]-=1 
 
 
-        if tails[-1] not in visited:
-            visited.append(tails[i][:])
+        visited.append(tuple(tails[i][:]))
 
-print(len(visited))
+print(len(set(visited)))
 ```
 
-    5695
-    2434
+    5764
+    2616
 
 
 ## Day 10
@@ -700,8 +701,8 @@ class Monkey:
 
   def _inspect(self) -> None:
     """
-    Apply their inspection function to
-    keep track of our worry, also log
+    Apply inspection function to
+    keep track of worry, also log
     number of inspections
     """
     for i in range(len(self.items)):
@@ -717,7 +718,7 @@ class Monkey:
   def _test(self) -> dict:
     """
     Apply their test to decide where to throw
-    item, retur dict of items to throw
+    items, return dict of items to throw
     """
     to_throw = {f:[] for f in self.friends}
     for i in self.items:
@@ -739,7 +740,7 @@ class Monkey:
     return to_throw
 
 
-class Jungle(Monkey):
+class Jungle():
   """
   Jungle class keeping track of entire
   pack of monkeys. 
@@ -760,7 +761,7 @@ class Jungle(Monkey):
     item inspections and throw items to 
     pertinent monkey friends.
 
-    Allows for "pretty" logging.
+    log allows for "pretty" logging.
     """
     for t in range(tours):
       for monkey in self.monkeys:
@@ -775,7 +776,7 @@ class Jungle(Monkey):
 
   def monkey_business(self) -> int:
     """
-    Get current of monkey business.
+    Get current amount of monkey business.
     """
     inspections = sorted([monkey.inspections for monkey in self.monkeys])
     return inspections[-2]*inspections[-1]
@@ -815,11 +816,13 @@ def jungle_parser(jungle_txt: list[str], question: int=1):
   # worry = worry // 3 
   if question == 1:
     reduction = 'old // 3'
-  # in questions 2 we can remove the lcm 
-  # from the worry levels. all tests are primes
-  # thus if it is divisible by the lcm of them 
-  # it has already passed by all monkeys and
-  # is back in the starting position
+  # since 
+  #   x % n = x % n % n,
+  # we can save x % n instead of x
+  # with n being the lcm of all tests, 
+  # effectively preventing the worry 
+  # level of ever exceeding n, without
+  # impacting the tests
   else:
     tests = [monkey_parser(monkey_txt)['test'] for monkey_txt in jungle_txt]
     test_lcm = reduce(lcm, tests)
@@ -828,20 +831,20 @@ def jungle_parser(jungle_txt: list[str], question: int=1):
   monkeys = []
   for monkey_txt in jungle_txt:
     monkeys.append(Monkey(**monkey_parser(monkey_txt), reduction=reduction))
-  return monkeys
+  return Jungle(monkeys)
+
 ```
 
 
 ```python
 with open('data/day11.txt') as file:
     input = file.read()
-    
 jungle_txt = [i.splitlines() for i in input.split('\n\n')]
 ```
 
 
 ```python
-jungle = Jungle(jungle_parser(jungle_txt=jungle_txt, question=1))
+jungle = jungle_parser(jungle_txt=jungle_txt, question=1)
 jungle.tour(tours=20, log=False)
 jungle.monkey_business()
 ```
@@ -855,7 +858,7 @@ jungle.monkey_business()
 
 
 ```python
-jungle = Jungle(jungle_parser(jungle_txt=jungle_txt, question=2))
+jungle = jungle_parser(jungle_txt=jungle_txt, question=2)
 jungle.tour(tours=10_000, log=False)
 jungle.monkey_business()
 ```
@@ -864,5 +867,169 @@ jungle.monkey_business()
 
 
     19754471646
+
+
+
+## Day 12
+
+
+```python
+from queue import PriorityQueue
+
+def idx(input, row, col):
+    """
+    Helper function creating an int
+    index from a 2d index in a matrix
+    """
+    return len(input[0])*row + col
+    
+
+class Mountain:
+    """
+    Graph representation of all feasible
+    paths of a matrix representation of a
+    mountain
+    """
+    def __init__(
+            self,
+            matrix: list[list[int]],
+            inverse: bool=False
+            ):
+        # set -1 paths between all points on mountain
+        self.edges = [
+            [-1 for _ in range(len(matrix)*len(matrix[0]))]
+            for _ in range(len(matrix)*len(matrix[0]))
+            ]
+        # iterate once over input to get all paths
+        self._matrix_to_graph(matrix=matrix, inverse=inverse)
+        self.v = len(matrix)*len(matrix[0])
+        self.visited = []
+    
+
+    def _add_edge(
+            self,
+            u,
+            v,
+            weight
+            ):
+        self.edges[u][v] = weight
+
+
+    def _matrix_to_graph(
+            self,
+            matrix,
+            inverse
+            ):
+        # inverse changes all elements to negative
+        # this allows djikstra to search from end
+        # to start instead of inverse... 
+        if inverse:
+            matrix = [[-x for x in l] for l in matrix]
+            
+        for row in range(len(matrix)):
+            for col in range(len(matrix[0])):
+                u, u_value = idx(matrix, row, col), matrix[row][col]
+                # check point right of u
+                if col+1 < len(matrix[0]):
+                    v = idx(matrix, row, col+1)
+                    if matrix[row][col+1]-u_value < 2:
+                        self._add_edge(u=u, v=v, weight=1)
+                    if u_value - matrix[row][col+1] < 2:
+                        self._add_edge(u=v, v=u, weight=1)
+                # check point below u
+                if row+1 < len(matrix):
+                    v = idx(matrix, row+1, col)
+                    if matrix[row+1][col]-u_value < 2:
+                        self._add_edge(u=u, v=v, weight=1)
+                    if u_value - matrix[row+1][col] < 2:
+                        self._add_edge(u=v, v=u, weight=1)
+
+
+def dijkstra(
+        graph,
+        start_vertex,
+        end=None
+        ):
+    D = {v:float('inf') for v in range(graph.v)}
+    D[start_vertex] = 0
+
+    pq = PriorityQueue()
+    pq.put((0, start_vertex))
+
+    while not pq.empty():
+        (dist, current_vertex) = pq.get()
+        graph.visited.append(current_vertex)
+
+        for neighbor in range(graph.v):
+            if graph.edges[current_vertex][neighbor] != -1:
+                distance = graph.edges[current_vertex][neighbor]
+                if neighbor not in graph.visited:
+                    old_cost = D[neighbor]
+                    new_cost = D[current_vertex] + distance
+                    if new_cost < old_cost:
+                        pq.put((new_cost, neighbor))
+                        D[neighbor] = new_cost
+                elif neighbor==end:
+                    return D
+    return D
+```
+
+
+```python
+with open('data/day12.txt') as file:
+    input = file.read()
+
+ends = []
+input = [list(i) for i in input.splitlines()]
+for row in range(len(input)):
+    for col in range(len(input[0])):
+        # see if element is start,
+        # save position, relabel
+        if input[row][col]=='S':
+            start = idx(input, row, col)
+            input[row][col]='a'
+        # see if element is end,
+        # save position, relabel
+        elif input[row][col]=='E':
+            end = idx(input, row, col)
+            input[row][col]='z'
+        
+        # get potential ends for question 2
+        if input[row][col]=='a':
+            ends.append(idx(input, row, col))
+
+        # change element to numeric
+        input[row][col] = ord(input[row][col])
+```
+
+
+```python
+m = Mountain(matrix=input)
+D = dijkstra(m, start, end=end)
+D[end]
+```
+
+
+
+
+    339
+
+
+
+
+```python
+m = Mountain(matrix=input, inverse=True)
+D = dijkstra(m, end)
+candidates = []
+for d in D.keys():
+    if d in ends:
+        candidates.append(D[d])
+min(candidates)
+```
+
+
+
+
+    332
 
 
