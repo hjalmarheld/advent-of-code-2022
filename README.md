@@ -29,6 +29,8 @@ https://adventofcode.com/
 
 [Day 12](#day-12)
 
+[Day 13](#day-13)
+
 
 ```python
 # import used thus far, trying to keep 
@@ -874,8 +876,6 @@ jungle.monkey_business()
 
 
 ```python
-from queue import PriorityQueue
-
 def idx(input, row, col):
     """
     Helper function creating an int
@@ -928,7 +928,10 @@ class Mountain:
             
         for row in range(len(matrix)):
             for col in range(len(matrix[0])):
+                
                 u, u_value = idx(matrix, row, col), matrix[row][col]
+
+
                 # check point right of u
                 if col+1 < len(matrix[0]):
                     v = idx(matrix, row, col+1)
@@ -953,11 +956,10 @@ def dijkstra(
     D = {v:float('inf') for v in range(graph.v)}
     D[start_vertex] = 0
 
-    pq = PriorityQueue()
-    pq.put((0, start_vertex))
+    pq = [start_vertex]
 
-    while not pq.empty():
-        (dist, current_vertex) = pq.get()
+    while pq:
+        current_vertex = pq.pop(0)
         graph.visited.append(current_vertex)
 
         for neighbor in range(graph.v):
@@ -967,15 +969,12 @@ def dijkstra(
                     old_cost = D[neighbor]
                     new_cost = D[current_vertex] + distance
                     if new_cost < old_cost:
-                        pq.put((new_cost, neighbor))
+                        pq.append(neighbor)
                         D[neighbor] = new_cost
                 elif neighbor==end:
                     return D
     return D
-```
 
-
-```python
 with open('data/day12.txt') as file:
     input = file.read()
 
@@ -1031,5 +1030,91 @@ min(candidates)
 
 
     332
+
+
+
+## Day 13
+
+
+```python
+def evaluate(left, right):
+    # check if ints, compare
+    if type(left)==int and type(right)==int:
+        if left == right:
+            return 0
+        elif left < right:
+            return -1
+        else:
+            return 1
+
+    # create iterators
+    try:
+        left = iter(left)
+    except:
+        left = iter((left,))
+    try:
+        right = iter(right)
+    except:
+        right = iter((right,))
+
+    # go through iterators
+    while True:
+        # check if left but not right
+        try:
+            left1 = next(left)
+        except:
+            try:
+                next(right)
+                return -1
+            except:
+                return 0
+        # check right only right
+        try:
+            right1 = next(right)
+        except:
+            return 1
+        # otherwise recurse
+        if comp:=evaluate(left1, right1):
+            return comp
+```
+
+
+```python
+with open('data/day13.txt') as file:
+    input = file.read()
+
+total = 0
+i=0
+for pair in [i.splitlines() for i in input.split('\n\n')]:
+    if evaluate(eval(pair[0]), eval(pair[1])) <= 0:
+        total += i + 1
+    i+=1
+total
+```
+
+
+
+
+    5605
+
+
+
+
+```python
+div1, div2 = [[2]], [[6]]
+count1, count2 = 1, 1
+for line in filter(str.strip, input.splitlines()):
+    packet = eval(line)
+    if evaluate(packet, div1) < 0:
+        count1 += 1
+    elif evaluate(packet, div2) < 0:
+        count2 += 1
+count1 * (count1 + count2)
+```
+
+
+
+
+    24969
 
 
