@@ -31,6 +31,8 @@ https://adventofcode.com/
 
 [Day 13](#day-13)
 
+[Day 14](#day-14)
+
 
 ```python
 # import used thus far, trying to keep 
@@ -627,7 +629,7 @@ with open('data/day10.txt') as file:
 
 
 ```python
-sum = 1
+total = 1
 i = 1
 
 points = [20, 60, 100, 140, 180, 220]
@@ -644,19 +646,19 @@ def draw(cycle, strength):
         screen[row][col]='#'    
 
 for line in input.splitlines():
-    draw(cycle=i, strength=sum)
+    draw(cycle=i, strength=total)
     i+=1
     
     if i in points:
-        total_score += points.pop(0) * sum
+        total_score += points.pop(0) * total
 
     if num:=re.findall(pattern=r'-*[0-9]+', string=line):
-        draw(cycle=i, strength=sum)
+        draw(cycle=i, strength=total)
         i+=1
-        sum+=int(num[0])
+        total+=int(num[0])
 
     if i in points:
-        total_score += points.pop(0) * sum
+        total_score += points.pop(0) * total
 
 
 print(total_score)
@@ -1116,5 +1118,109 @@ count1 * (count1 + count2)
 
 
     24969
+
+
+
+## Day 14
+
+
+```python
+with open('data/day14.txt') as data:
+    input = data.read()
+
+
+rocks = set()
+bottom = 0
+for line in input.splitlines():
+    l = [i.split(',') for i in line.split(' -> ')]
+    for start, end in zip(l, l[1:]):
+        # get each line separately
+        x = sorted([int(start[0]), int(end[0])])
+        y = sorted([int(start[1]), int(end[1])])
+        # draw entire lines as tuples in set
+        for xi in range(x[0], x[1]+1):
+            for yi in range(y[0], y[1]+1):
+                rocks.add((xi, yi))
+                bottom = max(bottom, yi+1)
+```
+
+
+```python
+rocks1 = deepcopy(rocks)
+
+volume = 0
+filled = False
+while True:
+    sand = (500, 0)
+    while True:
+        # sand falls to bottom
+        #   ->  figure filled
+        if sand[1] >= bottom:
+            filled=True
+            break
+        # sand moves one step down
+        if (sand[0], sand[1]+1) not in rocks1:
+            sand = (sand[0], sand[1]+1)
+            continue
+        # sand moves diag left down
+        if (sand[0]-1, sand[1]+1) not in rocks1:
+            sand = (sand[0]-1, sand[1]+1)
+            continue
+        # sand moves diag right down
+        if (sand[0]+1, sand[1]+1) not in rocks1:
+            sand = (sand[0]+1, sand[1]+1)
+            continue
+        # not failling to bottom and nowhere to move
+        #   ->  stay where it is
+        rocks1.add(sand)
+        volume+=1
+        break
+    if filled:
+        break
+
+volume
+```
+
+
+
+
+    994
+
+
+
+
+```python
+rocks2 = deepcopy(rocks)
+
+# same process as above but we let sand 
+# fall to bottom, only fully break when
+# (500, 0 ) has been filled
+
+volume = 0
+while (500, 0) not in rocks2:
+    sand = (500, 0)
+    while True:
+        if sand[1] >= bottom:
+            break
+        if (sand[0], sand[1]+1) not in rocks2:
+            sand = (sand[0], sand[1]+1)
+            continue
+        if (sand[0]-1, sand[1]+1) not in rocks2:
+            sand = (sand[0]-1, sand[1]+1)
+            continue
+        if (sand[0]+1, sand[1]+1) not in rocks2:
+            sand = (sand[0]+1, sand[1]+1)
+            continue
+        break
+    rocks2.add(sand)
+    volume+=1
+
+volume
+```
+
+
+
+
+    26283
 
 
