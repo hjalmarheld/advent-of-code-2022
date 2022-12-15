@@ -33,6 +33,8 @@ https://adventofcode.com/
 
 [Day 14](#day-14)
 
+[Day 15](#day-15)
+
 
 ```python
 # import used thus far, trying to keep 
@@ -1223,4 +1225,100 @@ volume
 
     26283
 
+
+
+## Day 15
+
+
+```python
+with open('data/day15.txt') as data:
+    input = data.read()
+
+def manhattan(a, b):
+    return abs(a.real - b.real) + abs(a.imag - b.imag)
+```
+
+
+```python
+sensors = []
+beacons = []
+distances = []
+for line in input.splitlines():
+    line = [int(i) for i in re.findall(r'-*[0-9]+', string=line)]
+    sensors.append(line[0] + line[1]*1j)
+    beacons.append(line[2] + line[3]*1j)
+    distances.append(manhattan(sensors[-1], beacons[-1]))
+
+y = 2000000
+occupied = set()
+for sensor, distance in zip(sensors, distances):
+    if sensor.imag-distance <= y <= sensor.imag+distance:
+        spare_distance = int(distance - abs(y-sensor.imag))
+        occupied.add(sensor.real)
+        for i in range(spare_distance + 1):
+            occupied.add(sensor.real - i)
+            occupied.add(sensor.real + i)
+
+existing = set([b.real for b in beacons if b.imag==y])
+
+# question 1
+len(occupied)-len(existing)
+```
+
+
+
+
+    6124805
+
+
+
+
+```python
+edge = set()
+lower, higher = 0, 4000000
+
+for sensor, distance in zip(sensors, distances):
+    if sensor.real<0:
+        start = max(-x, -int(distance)-1)
+    else:
+        start = -int(distance)-1
+    for i in range(start, int(distance)+2):
+        x = sensor.real + i
+        y = sensor.imag + distance + 1 - abs(i)
+        if lower <= x <= higher and lower <= y <= higher:
+            edge.add(x + y*1j)
+        if x >= higher or y <= lower:
+            break
+
+    if sensor.imag < 0:
+        start = max(-y, -int(distance)-1)
+    else:
+        start = -int(distance)-1
+    for i in range(-int(distance)-1, int(distance)+2):
+        x = sensor.real + distance + 1 - abs(i)
+        y = sensor.imag + i
+        if lower <= x <= higher and lower <= y <= higher:
+            edge.add(x + y*1j)
+        if x <= lower or y >= higher:
+            break
+
+num_sensors = len(sensors)
+final = False
+
+for point in edge:
+    n = 0
+    for sensor, distance in zip(sensors, distances):
+        if not manhattan(sensor, point) > distance:
+            break
+        n += 1
+        if n == num_sensors:
+            final = point
+            break
+    if final:
+        break
+
+print(final.real * 4000000 + final.imag)
+```
+
+    12555527364986.0
 
