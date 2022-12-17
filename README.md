@@ -35,6 +35,9 @@ https://adventofcode.com/
 
 [Day 15](#day-15)
 
+[Day 16](#day-16)
+
+
 
 ```python
 # import used thus far, trying to keep 
@@ -45,6 +48,7 @@ import re
 from copy import deepcopy
 from math import lcm
 from functools import reduce
+from random import sample
 ```
 
 ## Day 1
@@ -955,8 +959,8 @@ class Mountain:
 def dijkstra(
         graph,
         start_vertex,
-        end=None
         ):
+    v_num = graph.v
     D = {v:float('inf') for v in range(graph.v)}
     D[start_vertex] = 0
 
@@ -975,8 +979,9 @@ def dijkstra(
                     if new_cost < old_cost:
                         pq.append(neighbor)
                         D[neighbor] = new_cost
-                elif neighbor==end:
-                    return D
+
+    graph.v = v_num
+    graph.visited = []
     return D
 
 with open('data/day12.txt') as file:
@@ -1008,7 +1013,7 @@ for row in range(len(input)):
 
 ```python
 m = Mountain(matrix=input)
-D = dijkstra(m, start, end=end)
+D = dijkstra(m, start)
 D[end]
 ```
 
@@ -1022,7 +1027,7 @@ D[end]
 
 ```python
 m = Mountain(matrix=input, inverse=True)
-D = dijkstra(m, end)
+D = dijkstra(m, start_vertex=end)
 candidates = []
 for d in D.keys():
     if d in ends:
@@ -1321,4 +1326,168 @@ print(final.real * 4000000 + final.imag)
 ```
 
     12555527364986.0
+
+
+## Day 16
+
+
+```python
+with open('data/day16.txt') as data:
+    input = data.read()
+
+paths = {}
+rates = {}
+name_map = {}
+
+int_name=0
+for line in input.splitlines():
+    name=line.split()[1]
+    name_map[name]=int_name
+    if int(''.join([n for n in line if n in '1234567890']))>0:
+        rates[int_name]=int(''.join([n for n in line if n in '1234567890']))
+    paths[int_name]=line.replace('s','').split('valve ')[-1].split(', ')
+    int_name+=1
+
+paths = {key:[name_map[i] for i in paths[key]] for key in paths.keys()}
+```
+
+
+```python
+# re-purposed from day 12
+class Graph:
+    def __init__(
+            self,
+            path_dict: dict,
+            ):
+        self.edges = [
+            [-1]*len(path_dict)
+            for _ in range(len(path_dict))
+            ]
+        self._matrix_to_graph(path_dict=path_dict)
+        self.v = len(path_dict)
+        self.visited = []
+
+    def _add_edge(
+            self,
+            u,
+            v
+            ):
+        self.edges[u][v] = 1
+
+    def _matrix_to_graph(
+            self,
+            path_dict,
+            ):
+        for u in path_dict.keys():
+            for v in path_dict[u]:
+                self._add_edge(u=u, v=v)
+
+
+def path_finder(
+        position: int,
+        time_left: int,
+        to_visit: list,
+        simulations: int = 1000,
+    ):
+
+    # create random paths by sampling
+    paths = [
+        list(sample(to_visit, k=len(to_visit)))
+        for _ in range(simulations)]
+
+    # try random paths, keep the first move
+    # of the best path tried
+    top_value = - 10_000
+    for path in paths:
+        value = 0
+        first_character = path[0]
+        time_left_, position_ = time_left, position
+        while path and time_left_>0:
+            next_position = path.pop(0)
+            time_left_ -= distances[position_][next_position]+1
+            value += max(time_left_*rates[next_position], 0)
+            position_ = next_position
+
+        if value >= top_value:
+            best_choice = first_character
+            top_value = value
+
+    # return first move of best path tried     
+    return best_choice
+
+
+graph = Graph(path_dict=paths)
+distances = {key:dijkstra(graph=graph, start_vertex=key) for key in paths.keys()}
+```
+
+
+```python
+simulation_results = []
+for _ in range(10):
+    time_left = 30
+    to_visit = list(rates.keys())
+    position = name_map['AA']
+    total=0
+
+    while time_left>0 and to_visit:    
+
+        best_choice = path_finder(
+            position=position,
+            time_left=time_left,
+            to_visit=to_visit)
+
+        time_left -= distances[position][best_choice]+1
+        total += max(0, time_left*rates[best_choice])
+        position = to_visit.pop(to_visit.index(best_choice))
+
+    simulation_results.append(total)
+
+print(max(simulation_results))
+```
+
+    1716
+
+
+
+```python
+simulation_results = []
+for _ in range(10):
+    to_visit = list(rates.keys())
+    position1, position2 = name_map['AA'], name_map['AA']
+    time_left1, time_left2 = 26, 26
+    total=0
+
+    while time_left1>0 or time_left2>0 and to_visit:
+
+        # part for elf
+
+        best_choice = path_finder(
+            position=position1,
+            time_left=time_left1,
+            to_visit=to_visit)
+
+        time_left1 -= distances[position1][best_choice]+1
+        total += max(0, time_left1*rates[best_choice])
+        position1 = to_visit.pop(to_visit.index(best_choice))
+
+        if not to_visit:
+            break
+
+        # part for elephant
+        
+        best_choice = path_finder(
+            position=position2,
+            time_left=time_left2,
+            to_visit=to_visit)
+
+        time_left2 -= distances[position2][best_choice]+1
+        total += max(0, time_left2*rates[best_choice])
+        position2 = to_visit.pop(to_visit.index(best_choice))
+        
+    simulation_results.append(total)
+    
+print(max(simulation_results))
+```
+
+    2504
 
