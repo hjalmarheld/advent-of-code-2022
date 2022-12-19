@@ -38,7 +38,6 @@ https://adventofcode.com/
 [Day 16](#day-16)
 
 
-
 ```python
 # import used thus far, trying to keep 
 # to minimum, without needing to write
@@ -1490,4 +1489,313 @@ print(max(simulation_results))
 ```
 
     2504
+
+
+## Day 17
+
+
+```python
+def rock_generator(i, height):
+    im = height+4
+    rock_type = i%5
+    if rock_type==0:
+        rock = [3+k + im*1j for k in range(4)]
+    elif rock_type==1:
+        rock = [4 + (im+2)*1j] \
+            + [3+k + (im+1)*1j for k in range(3)] \
+            + [4 + im*1j]
+    elif rock_type==2:
+        rock = [5 + (im+2)*1j] \
+            + [5 + (im+1)*1j] \
+            + [3+k + im*1j for k in range(3)]
+    elif rock_type==3:
+        rock = [3 + (im+k)*1j for k in range(4)]
+    elif rock_type==4:
+        rock = [3+k + im*1j for k in range(2)] \
+            + [3+k + (im+1)*1j for k in range(2)]
+
+    return rock, rock_type
+
+
+def wind_generator(j, input, rock):
+    index = j%len(input)
+    edges = [
+        max(r.real for r in rock),
+        min(r.real for r in rock)
+        ]
+    #current 
+    if input[index]==-1 and 1 in edges:
+        return 0, index
+    elif input[index]==1 and 7 in edges:
+        return 0, index
+    return input[index], index
+
+
+def offset_generator(pile):
+    min_offset = [-1]*7
+    for k in range(1, 8):
+        for r in pile:
+            if r.real==k:
+                min_offset[k-1] = max(min_offset[k-1], r.imag)
+    height = max(min_offset)
+    min_offset = [height-h for h in min_offset]
+    return tuple(min_offset)
+```
+
+
+```python
+with open('data/day17.txt') as data:
+    input = data.read() 
+
+input = list(input)
+input = [int(i.replace('>', '1').replace('<', '-1')) for i in input]
+```
+
+
+```python
+height = 0
+j = 0
+pile = set()
+seen_offsets = {}
+
+i=0
+additional=0
+while i <= 1000000000000:
+    # generate rock and rock_id
+    rock, rock_id = rock_generator(i=i, height=height)
+    if i==2022:
+        print(height)
+        skipping=True
+    while True:
+        # generate wind and wind_id
+        wind, wind_id = wind_generator(
+            j=j,
+            input=input,
+            rock=rock)
+        # move wind index
+        j+=1
+        # see if wind can move rock without crashing into
+        # the previous rocks, otherwie leave as is
+        if len(pile.intersection(set([r+wind for r in rock])))==0:
+            rock_ = set([r+wind for r in rock])
+        else:
+            rock_=rock
+        # see if moving down one step crashed into previous rocks
+        if len(pile.intersection(set([r-1j for r in rock_])))>0 or min(r.imag for r in rock_)==1:
+            # add to rock pile
+            for r in rock_: pile.add(r)
+            # get max height
+            height=max((r.imag for r in pile))
+            # get contour of rocks from above
+            offset = offset_generator(pile)
+            # move rock index
+            i+=1
+
+            # see if current contour, rock_id and wind_id
+            # has been seen before -> repeating pattern
+            if (offset, rock_id, wind_id) in seen_offsets and skipping:
+                # repeat as many times as possible with current limit
+                old_i, old_height = seen_offsets[(offset, rock_id, wind_id)]
+                skip = (1000000000000 - i) // (i - old_i)
+                i += (i - old_i) * skip
+                additional += skip * (height - old_height)
+                seen_offsets = {}
+            else:
+                seen_offsets[offset, rock_id, wind_id]= (i, height)
+            break
+        # else move down one step
+        else:
+            rock = set([r-1j for r in rock_])
+
+height+additional-1
+```
+
+    3137.0
+
+
+
+
+
+    1564705882327.0
+
+
+
+## Day 17
+
+
+```python
+input='''2,2,2
+1,2,2
+3,2,2
+2,1,2
+2,3,2
+2,2,1
+2,2,3
+2,2,4
+2,2,6
+1,2,5
+3,2,5
+2,1,5
+2,3,5'''
+
+with open('data/day18.txt') as data:
+    input = data.read() 
+
+input = [list(map(int, line.split(','))) for line in input.splitlines()]
+```
+
+
+```python
+class Cube:
+    """
+    Simple cube object with walls/edges
+    """
+    def __init__(
+            self,
+            position: list[int],
+            ):
+        self.position = tuple(position)
+        self.edges = self._add_edges(position)
+    
+
+    def _add_edges(
+            self,
+            position
+            ):
+        edges = set()
+        for i in range(len(position)):
+            for j in [-0.5, 1]:
+                position[i]+=j
+                edges.add(tuple(position))
+            position[i]-=0.5
+        return edges
+```
+
+
+```python
+cubes = []
+for point in input:
+    cubes.append(Cube(point))
+
+edges = []
+for cube in cubes:
+    for edge in cube.edges:
+        edges.append(edge)
+
+values = {}
+for edge in edges:
+    if edge in values:
+        values[edge]+=1
+    else:
+        values[edge]=1
+
+# question 1
+sum([value for value in values.values() if value==1])
+```
+
+
+
+
+    3610
+
+
+
+
+```python
+min_x, max_x = 10_000, -10_000
+min_y, max_y = 10_000, -10_000
+min_z, max_z = 10_000, -10_000
+
+positions = set()
+
+for cube in cubes:
+    min_x = int(min(min_x, cube.position[0]))
+    max_x = int(max(max_x, cube.position[0]))
+    min_y = int(min(min_y, cube.position[1]))
+    max_y = int(max(max_y, cube.position[1]))
+    min_z = int(min(min_z, cube.position[2]))
+    max_z = int(max(max_z, cube.position[2]))
+    positions.add(cube.position)
+
+
+# coords form a cube surrounding
+# the shape given by the input 
+
+min_x -= 1
+max_x += 1
+min_y -= 1
+max_y += 1
+min_z -= 1
+max_z += 1
+
+
+# get all reachable point in cube
+# basically flood fill from min coordinates
+
+water = set()
+to_visit = [(min_x, min_y, min_z)]
+
+while to_visit:
+    current = to_visit.pop(0)
+    water.add(current)
+    
+    for dir in [1, -1]:
+        if min_x<=current[0]+dir<=max_x:
+            x_tuple = (current[0]+dir, current[1], current[2])
+            if x_tuple not in positions and x_tuple not in water:
+                water.add(x_tuple)
+                to_visit.append(x_tuple)
+        
+        if min_y<=current[1]+dir<=max_y:
+            y_tuple = (current[0], current[1]+dir, current[2])
+            if y_tuple not in positions and y_tuple not in water:
+                water.add(y_tuple)
+                to_visit.append(y_tuple)
+
+        if min_z<=current[2]+dir<=max_z:
+            z_tuple=(current[0], current[1], current[2]+dir)
+            if z_tuple not in positions and z_tuple not in water:
+                water.add(z_tuple)
+                to_visit.append(z_tuple)
+
+
+# all points NOT reached by above fill
+# is either solid or trapped air
+
+solid = []
+for x in range(min_x, max_x+1):
+    for y in range(min_y, max_y+1):
+        for z in range(min_z, max_z+1):
+            if (x, y, z) not in water:
+                solid.append((x,y,z))
+
+
+# apply approach used in q1 for all of 
+# these points
+
+cubes = []
+for point in solid:
+    cubes.append(Cube(list(point)))
+
+edges = []
+for cube in cubes:
+    for edge in cube.edges:
+        edges.append(edge)
+
+values = {}
+for edge in edges:
+    if edge in values:
+        values[edge]+=1
+    else:
+        values[edge]=1
+
+# question 2
+sum([value for value in values.values() if value==1])
+```
+
+
+
+
+    2082
+
 
