@@ -37,6 +37,17 @@ https://adventofcode.com/
 
 [Day 16](#day-16)
 
+[Day 17](#day-17)
+
+[Day 18](#day-18)
+
+[Day 19](#day-19)
+
+[Day 20](#day-20)
+
+[Day 21](#day-21)
+
+
 
 ```python
 # import used thus far, trying to keep 
@@ -48,6 +59,7 @@ from copy import deepcopy
 from math import lcm
 from functools import reduce
 from random import sample
+from collections import deque
 ```
 
 ## Day 1
@@ -471,29 +483,29 @@ print(sum(map(sum, empties)))
 
 max_range = 0
 for i in range(len(matrix)):
-    for j in range(len(matrix[0])):
-        tree = matrix[i][j]
+    for k in range(len(matrix[0])):
+        tree = matrix[i][k]
         up, down, right, left = 0, 0, 0, 0
 
         x=i
         while x>0:
             x-=1
             up+=1
-            if matrix[x][j] >= tree:
+            if matrix[x][k] >= tree:
                 break
         x=i
         while x<len(matrix)-1:
             x+=1
             down+=1
-            if matrix[x][j] >= tree:
+            if matrix[x][k] >= tree:
                 break
-        x=j
+        x=k
         while x<len(matrix[0])-1:
             x+=1
             right+=1
             if matrix[i][x] >= tree:
                 break
-        x=j
+        x=k
         while x>0:
             x-=1
             left+=1
@@ -1798,4 +1810,308 @@ sum([value for value in values.values() if value==1])
 
     2082
 
+
+
+## Day 19
+
+
+```python
+with open('data/day19.txt') as data:
+    input = data.read() 
+
+recipes = {}
+for line in input.splitlines():
+    words = line.split()
+    recipe_n = int(words[1][:-1])
+    recipes[recipe_n] = {}
+    recipes[recipe_n]['r1_cost']= int(words[6])
+    recipes[recipe_n]['r2_cost'] = int(words[12])
+    recipes[recipe_n]['r3_cost1'] = int(words[18])
+    recipes[recipe_n]['r3_cost2'] = int(words[21])
+    recipes[recipe_n]['r4_cost1'] = int(words[27])
+    recipes[recipe_n]['r4_cost2'] = int(words[30])
+```
+
+
+```python
+def simulate(r1_cost, r2_cost, r3_cost1, r3_cost2, r4_cost1, r4_cost2, time):
+    max_geodes = 0
+    start = (0, 0, 0, 0, 1, 0, 0, 0, time)
+    queue = deque([start])
+    visited = set()
+    while queue:
+        ore, clay, obsidian, geode, r1, r2, r3, r4, t = queue.popleft()
+
+        max_geodes = max(max_geodes, geode)
+        if t==0:
+            continue
+
+        max_ore_use = max([r1_cost, r2_cost, r3_cost1, r4_cost1])
+        # make sure we don't build more of r1 than necessary
+        # if we cant use more than x ore per round, never
+        # build more than x r1 
+        if r1 >= max_ore_use:
+            r1 = max_ore_use
+        # same for r2
+        if r2>=r3_cost2:
+            r2 = r3_cost2
+        # same for r3...
+        if r3>=r4_cost2:
+            r3 = r4_cost2
+
+        # correct current amount of ore following above adjustments..
+        if ore >= t*max_ore_use-r1*(t-1):
+            ore = t*max_ore_use-r1*(t-1)
+        # same for clay...
+        if clay>=t*r3_cost2-r2*(t-1):
+            clay = t*r3_cost2 - r2*(t-1)
+        # same for obsidian...
+        if obsidian>=t*r4_cost2-r3*(t-1):
+            obsidian = t*r4_cost2-r3*(t-1)
+
+        state = (
+            ore,
+            clay,
+            obsidian,
+            geode,
+            r1, r2, r3, r4, t)
+
+        # if state already seen, skip
+        if state in visited:
+            continue
+        visited.add(state)
+
+        # steps forward, either do nothing
+        # or build a robot
+
+        # do nothing
+        queue.append((
+            ore + r1,
+            clay + r2,
+            obsidian + r3,
+            geode + r4,
+            r1, r2, r3, r4, t-1))
+        # build robot 1
+        if ore >= r1_cost:
+            queue.append((
+                ore - r1_cost + r1,
+                clay + r2,
+                obsidian + r3,
+                geode + r4,
+                r1 + 1, r2, r3, r4, t-1))
+        # build robot 2 etc..
+        if ore >= r2_cost:
+            queue.append((
+                ore - r2_cost + r1,
+                clay + r2,
+                obsidian + r3,
+                geode + r4,
+                r1, r2 + 1, r3, r4, t-1))
+        # build robot 3
+        if ore >= r3_cost1 and clay >= r3_cost2:
+            queue.append((
+                ore - r3_cost1 + r1,
+                clay - r3_cost2 + r2,
+                obsidian + r3,
+                geode + r4,
+                r1, r2, r3+1, r4, t-1))
+        # build robot 4
+        if ore >= r4_cost1 and obsidian >= r4_cost2:
+            queue.append((
+                ore - r4_cost1 + r1,
+                clay + r2,
+                obsidian - r4_cost2 + r3,
+                geode + r4,
+                r1, r2, r3, r4+1, t-1))
+    return max_geodes
+
+
+question1 = []
+question2 = []
+
+for key in recipes.keys():
+    max_geodes1 = simulate(
+        r1_cost=recipes[key]['r1_cost'],
+        r2_cost=recipes[key]['r2_cost'],
+        r3_cost1=recipes[key]['r3_cost1'],
+        r3_cost2=recipes[key]['r3_cost2'],
+        r4_cost1=recipes[key]['r4_cost1'],
+        r4_cost2=recipes[key]['r4_cost2'],
+        time=24)
+        
+    question1.append(key * max_geodes1)
+
+    if key<=3:
+        max_geodes2 = simulate(
+            r1_cost=recipes[key]['r1_cost'],
+            r2_cost=recipes[key]['r2_cost'],
+            r3_cost1=recipes[key]['r3_cost1'],
+            r3_cost2=recipes[key]['r3_cost2'],
+            r4_cost1=recipes[key]['r4_cost1'],
+            r4_cost2=recipes[key]['r4_cost2'],
+            time=32)
+        question2.append(max_geodes2)
+
+print(sum(question1))
+print(question2[0]*question2[1]*question2[2])
+```
+
+    1681
+    5394
+
+
+## Day 20
+
+
+```python
+with open('data/day20.txt') as data:
+   input = data.read()
+input=[int(i) for i in input.splitlines()]
+
+n = len(input)
+input_=[input[i]+i*1j for i in range(len(input))]
+to_do = deepcopy(input_)
+
+
+while to_do:
+    val = to_do.pop(0)
+    idx = input_.index(val)
+    j = (idx + val.real) % (n - 1)
+    input_.pop(idx)
+    input_.insert(int(j), val.real)
+
+idx = input_.index(0)
+nums = [1000, 2000, 3000]
+# question 1
+print(sum([input_[(idx + nums[i]) % n] for i in range(3)]))
+
+
+input_=[input[i]*811589153+i*1j for i in range(len(input))]
+to_do = deepcopy(input_)*10
+
+while to_do:
+    val = to_do.pop(0)
+    idx = input_.index(val)
+    j = (idx + val.real) % (n - 1)
+    input_.pop(idx)
+    input_.insert(int(j), val)
+
+input_ = [i.real for i in input_]
+
+idx = input_.index(0)
+nums = [1000, 2000, 3000]
+# question 2
+print(sum([input_[(idx + nums[i]) % n].real for i in range(3)]))
+```
+
+    3466.0
+    9995532008348.0
+
+
+## Day 21
+
+
+```python
+with open('data/day21.txt') as data:
+        input = data.read() 
+```
+
+
+```python
+values = {k.split(': ')[0]:{'expression':k.split(': ')[1]} for k in input.splitlines()}
+to_do = []
+
+for key in values.keys():
+    # check if value already number
+    try:
+        values[key]['expression']=float(values[key]['expression'])
+        values[key]['done']=True
+    # otherwise get expression and needed numbers
+    except:
+        values[key]['needs'] = values[key]['expression'].split()[0::2]
+        values[key]['done']=False
+        to_do.append(key)
+
+    if key=='root':
+        key1 = values[key]['needs'][0]
+        key2 = values[key]['needs'][1]
+```
+
+
+```python
+to_do_ = deepcopy(to_do)
+values_ = deepcopy(values)
+
+while to_do_:
+    current = to_do_.pop(0)
+    expression = False
+    needs = values_[current]['needs']
+    
+    if all([values_[n]['done'] for n in needs]):
+        expression = (str(values_[needs[0]]['expression'])
+            + values_[current]['expression'].split()[1]
+            + str(values_[needs[1]]['expression']))
+    
+    if expression:
+        values_[current]['expression'] = eval(expression)
+        values_[current]['done']=True
+    else:
+        to_do_.append(current)
+
+# question  1    
+values_['root']['expression']
+```
+
+
+
+
+    66174565793494.0
+
+
+
+
+```python
+diff = []
+i=1
+
+while True:
+    i+=1
+    to_do_ = deepcopy(to_do)
+    values_ = deepcopy(values)
+    values_['humn']['expression']=i
+    
+    while to_do_:
+        current = to_do_.pop(0)
+        expression = False
+        needs = values_[current]['needs']
+        
+        if all([values_[n]['done'] for n in needs]):
+            expression = (str(values_[needs[0]]['expression'])
+                + values_[current]['expression'].split()[1]
+                + str(values_[needs[1]]['expression']))
+        
+        if expression:
+            values_[current]['expression'] = eval(expression)
+            values_[current]['done']=True
+        else:
+            to_do_.append(current)
+    
+    if values_[key1]['expression']==values_[key2]['expression']:
+        break
+
+    diff.append(values_[key1]['expression']-values_[key2]['expression'])
+
+    # ghetto gradient descent
+    if len(diff)>1:
+        slope = diff[0]-diff[1]
+        to_increase = diff[1]/slope
+        diff.pop(0)
+        if to_increase>1:
+            i+=int(to_increase//1.05)
+
+# question 2
+print(i)
+```
+
+    3327575724809
 
