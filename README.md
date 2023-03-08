@@ -47,6 +47,13 @@ https://adventofcode.com/
 
 [Day 21](#day-21)
 
+[Day 22](#day-22)
+
+[Day 23](#day-23)
+
+[Day 24](#day-24)
+
+[Day 25](#day-25)
 
 
 ```python
@@ -1632,24 +1639,10 @@ height+additional-1
 
 
 
-## Day 17
+## Day 18
 
 
 ```python
-input='''2,2,2
-1,2,2
-3,2,2
-2,1,2
-2,3,2
-2,2,1
-2,2,3
-2,2,4
-2,2,6
-1,2,5
-3,2,5
-2,1,5
-2,3,5'''
-
 with open('data/day18.txt') as data:
     input = data.read() 
 
@@ -2001,7 +1994,7 @@ input_ = [i.real for i in input_]
 idx = input_.index(0)
 nums = [1000, 2000, 3000]
 # question 2
-print(sum([input_[(idx + nums[i]) % n].real for i in range(3)]))
+print(sum([input_[(idx + nums[i]) % n] for i in range(3)]))
 ```
 
     3466.0
@@ -2072,7 +2065,7 @@ values_['root']['expression']
 
 ```python
 diff = []
-i=1
+i=0
 
 while True:
     i+=1
@@ -2100,18 +2093,556 @@ while True:
         break
 
     diff.append(values_[key1]['expression']-values_[key2]['expression'])
-
     # ghetto gradient descent
     if len(diff)>1:
         slope = diff[0]-diff[1]
         to_increase = diff[1]/slope
         diff.pop(0)
         if to_increase>1:
-            i+=int(to_increase//1.05)
+            i+=int(to_increase//1.01)
 
-# question 2
+
+
 print(i)
 ```
 
     3327575724809
+
+
+## Day 22
+
+Solution shamelessly stolen from 
+https://github.com/noahhansson/AOC22
+
+
+```python
+import os
+from enum import Enum
+
+def read_input(file_name:str) -> str:
+    input_file = os.path.join(os.getcwd(), "data", f"{file_name}.txt")
+    with open(input_file, 'r') as file:
+        contents = [val.strip("\n") for val in file.readlines()]
+    return contents
+
+class Direction(Enum):
+    RIGHT=0
+    DOWN=1
+    LEFT=2
+    UP=3
+
+def read_map() -> tuple[set[tuple[int, int]], list[tuple[int, int]], list[int | str]]:
+    inpt = read_input("day22")
+    monkey_map = inpt[:-2]
+    instructions = inpt[-1]
+    edges = []
+    walls = set()
+    for i, row in enumerate(monkey_map):
+        #Parse map edges
+        map_start = 0
+        for c in row:
+            if c != " ":
+                break
+            else:
+                map_start += 1
+        map_end = len(row)
+        edges.append((map_start-1, map_end))
+        #Parse walls
+        for j, c in enumerate(row):
+            if c == "#":
+                walls.add((j, i))
+
+    instructions = instructions.replace("R", ",R,").replace("L", ",L,").split(",")
+    instructions = [int(x) if x not in ("R", "L") else x for x in instructions]
+
+    return walls, edges, instructions
+
+
+def get_first_solution():
+    walls, edges, instructions = read_map()
+    start_row = 0
+
+    position = (edges[start_row][0] + 1, start_row)
+    direction = Direction.RIGHT
+
+    for instruction in instructions:
+        match instruction:
+            case int():
+                for step in range(instruction):
+
+                    #Move in the right direction
+                    if direction == Direction.RIGHT:
+                        new_position = (position[0] + 1, position[1])
+                    elif direction == Direction.DOWN:
+                        new_position = (position[0], position[1] + 1)
+                    elif direction == Direction.LEFT:
+                        new_position = (position[0] - 1, position[1])
+                    elif direction == Direction.UP:
+                        new_position = (position[0], position[1] - 1)
+
+                    if direction in (Direction.LEFT, Direction.RIGHT):
+                        #Check for looping in x
+                        x, y = new_position
+                        row_edges = edges[y]
+                        if x == row_edges[0]:
+                            new_position = (row_edges[1] - 1, y)
+                        elif x == row_edges[1]:
+                            new_position = (row_edges[0] + 1, y)
+
+                    elif direction in (Direction.UP, Direction.DOWN):
+                        #Check for looping in y
+                        x, y = new_position
+
+                        if (y == len(edges)) or (x <= edges[y][0]) or (x >= edges[y][1]):
+                            if direction == Direction.DOWN:
+                                #Search upwards for last point thas is not out
+                                #of bounds
+                                while True:
+                                    if y <= 0:
+                                        break
+                                    row_edges = edges[y - 1]
+                                    if (x <= row_edges[0]) or (x >= row_edges[1]):
+                                        break
+                                    y -= 1
+
+                            elif direction == Direction.UP:
+                                while True:
+                                    if y >= (len(edges) - 1):
+                                        break
+                                    row_edges = edges[y + 1]
+                                    if (x <= row_edges[0]) or (x >= row_edges[1]):
+                                        break
+                                    y += 1
+
+                        new_position = (x, y)
+
+                    #Check for colission
+                    if new_position in walls:
+                        break
+                    else:
+                        position = new_position
+
+            case 'R':
+                #rotate right
+                direction = Direction((direction.value + 1)%4)
+            case 'L':
+                #rotate left
+                direction = Direction((direction.value - 1)%4)
+    
+    return 1000 * (position[1] + 1) + 4 * (position[0] + 1) + direction.value
+
+def get_face(point: tuple[int, int]) -> int:
+    x, y = point
+
+    if (50 <= x < 100) and (0 <= y < 50):
+        return 1
+    elif (100 <= x < 150) and (0 <= y < 50):
+        return 2
+    elif (50 <= x < 100) and (50 <= y < 100):
+        return 3
+    elif (50 <= x < 100) and (100 <= y < 150):
+        return 4
+    elif (0 <= x < 50) and (100 <= y < 150):
+        return 5
+    elif (0 <= x < 50) and (150 <= y < 200):
+        return 6
+    else:
+        return 0
+
+def traverse(current_point: tuple[int, int], direction: Direction) -> tuple[tuple[int, int], Direction]:
+
+    x, y = current_point
+    if direction == Direction.UP:
+        next_point = (x, y-1)
+    elif direction == Direction.RIGHT:
+        next_point = (x+1, y)
+    elif direction == Direction.DOWN:
+        next_point = (x, y+1)
+    elif direction == Direction.LEFT:
+        next_point = (x-1, y)
+
+    if get_face(next_point)==get_face(current_point):
+        return next_point, direction
+
+    else:
+
+        x = x % 50
+        y = y % 50
+
+        match (get_face(current_point), direction):
+            case (1, Direction.RIGHT):
+                next_direction = direction
+
+            case (1, Direction.DOWN):
+                next_direction = direction
+
+            case (1, Direction.LEFT):
+                next_point = (0, 149 - y)
+                next_direction = Direction.RIGHT
+
+            case (1, Direction.UP):
+                next_point = (0, 150 + x)
+                next_direction = Direction.RIGHT
+
+            case (2, Direction.LEFT):
+                next_direction = direction
+            
+            case (2, Direction.DOWN):
+                next_point = (99, x + 50)
+                next_direction = Direction.LEFT
+            
+            case (2, Direction.RIGHT):
+                next_point = (99, 149 - y)
+                next_direction = Direction.LEFT
+            
+            case (2, Direction.UP):
+                next_point = (x, 199)
+                next_direction = Direction.UP
+            
+            case (3, Direction.UP):
+                next_direction = direction
+            
+            case (3, Direction.RIGHT):
+                next_point = ((y + 100), 49)
+                next_direction = Direction.UP
+            
+            case (3, Direction.LEFT):
+                next_point = (y, 100)
+                next_direction = Direction.DOWN
+            
+            case (3, Direction.DOWN):
+                next_direction = direction
+            
+            case (4, Direction.RIGHT):
+                next_point = (149, (49 - y))
+                next_direction = Direction.LEFT
+            
+            case (4, Direction.UP):
+                next_direction = direction
+            
+            case (4, Direction.LEFT):
+                next_direction = direction
+            
+            case (4, Direction.DOWN):
+                next_point = (49, (150 + x))
+                next_direction = Direction.LEFT
+            
+            case (5, Direction.LEFT):
+                next_point = (50, (49 - y))
+                next_direction = Direction.RIGHT
+            
+            case (5, Direction.UP):
+                next_point = (50, x + 50)
+                next_direction = Direction.RIGHT
+            
+            case (5, Direction.RIGHT):
+                next_direction = direction
+            
+            case (5, Direction.DOWN):
+                next_direction = direction
+            
+            case (6, Direction.LEFT):
+                next_point = ((y + 50), 0)
+                next_direction = Direction.DOWN
+            
+            case (6, Direction.DOWN):
+                next_point = ((100 + x), 0)
+                next_direction = Direction.DOWN
+            
+            case (6, Direction.RIGHT):
+                next_point = ((y + 50), 149)
+                next_direction = Direction.UP
+            
+            case (6, Direction.UP):
+                next_direction = direction
+            
+
+        return next_point, next_direction
+
+def print_map(walls, been):
+    grid = [["." if get_face((x, y)) > 0 else " " for x in range(0, 150)] for y in range(0, 200)]
+    for x, y in walls:
+        grid[y][x] = "#"
+    for (x, y), direction in been.items():
+        if direction == Direction.UP:
+            grid[y][x] = "^"
+        elif direction == Direction.LEFT:
+            grid[y][x] = "<"
+        elif direction == Direction.RIGHT:
+            grid[y][x] = ">"
+        elif direction == Direction.DOWN:
+            grid[y][x] = "v"
+    print("\n".join([" ".join(row) for row in grid]))
+
+
+def get_second_solution():
+    walls, _, instructions = read_map()
+
+    position = (50, 0)
+    direction = Direction.RIGHT
+
+    been = {}
+    been[position] = direction
+
+    for instruction in instructions:
+        match instruction:
+            case int():
+                for step in range(instruction):
+                    new_position, new_direction = traverse(position, direction)
+
+                    #Check for colission
+                    if new_position in walls:
+                        break
+                    else:
+                        position = new_position
+                        direction = new_direction
+
+                    been[position] = direction
+
+            case 'R':
+                #rotate right
+                direction = Direction((direction.value + 1)%4)
+            case 'L':
+                #rotate left
+                direction = Direction((direction.value - 1)%4)
+
+    return 1000 * (position[1] + 1) + 4 * (position[0] + 1) + direction.value
+
+print(get_first_solution())
+print(get_second_solution())
+```
+
+    93226
+    37415
+
+
+## Day 23
+
+
+```python
+with open('data/day23.txt') as data:
+        input = data.read() 
+
+input = [list(i) for i in input.splitlines()]
+
+elves = {}
+for x in range(len(input)):
+    for y in range(len(input[x])):
+        if input[x][y]=='#':
+            elves[x+y*1j]=x+y*1j
+
+directions = [
+    -1,
+    1,
+    -1j,
+    1j
+    ]
+
+direction_checks = [
+    [-1, -1+1j, -1-1j],
+    [1, 1+1j, 1 -1j],
+    [-1j, 1 -1j, -1 -1j],
+    [1j, 1+1j, -1+1j]
+    ]
+
+rounds=0
+while True:
+    rounds+=1
+    for elve in elves.keys():
+        # check if already clear
+        clear = True
+        for neighbor in neighbors:
+            if elve+neighbor in elves:
+                clear = False
+                break
+        if clear:
+            continue
+        
+        # check directions
+        move = False
+        for dir, checks in zip(directions, direction_checks):
+            clear = True
+            for check in checks:
+                if elve+check in elves:
+                    clear = False
+                    break
+            if clear:
+                move = dir
+                break
+        if move:
+            elves[elve]+=move
+            continue
+
+        elves[elve]=elve
+
+    stationary=True
+    for elve in elves.keys():
+        if elves[elve]!=elve:
+            stationary=False
+            break
+    if stationary:
+        break
+    
+    # check doubles
+    elves2 = {}
+    for elve in elves.keys():
+        proposed = elves[elve]
+        if elve==proposed:
+            elves2[elve]=elve
+        elif list(elves.values()).count(proposed)<2:
+            elves2[proposed]=proposed
+        else:
+            elves2[elve]=elve
+
+    elves = elves2
+
+    # get to next directions
+    directions.append(directions.pop(0))
+    direction_checks.append(direction_checks.pop(0))
+    if rounds==10:
+        tenth = elves.keys()
+
+
+max_x = max(tenth, key=lambda x: x.real).real
+min_x = min(tenth, key=lambda x: x.real).real
+max_y = max(tenth, key=lambda x: x.imag).imag
+min_y = min(tenth, key=lambda x: x.imag).imag
+
+print((max_x-min_x+1)*(max_y-min_y+1) - len(elves))
+print(rounds)
+```
+
+    4254.0
+    992
+
+
+## Day 24
+
+
+```python
+with open('data/day24.txt') as data:
+        input = data.read()
+        
+walls = set()
+blizzards = set()
+for x, line in enumerate(input.splitlines()):
+    for y, char in enumerate(line):
+        if char=='#':
+            walls.add((x-1, y-1))
+        if char in '^>v<':
+            blizzards.add(((x-1, y-1), {'^':(-1, 0), '>': (0, 1), 'v': (1, 0), '<': (0, -1)}[char]))
+    
+max_real, max_imag = x-1, y-1
+
+walls.add((-2, 0))
+walls.add((max_real+1, max_imag-1))
+
+t=0
+start = (-1, 0)
+end = (max_real, max_imag-1)
+directions = ((1, 0), (-1, 0), (0, 1), (0, -1), (0, 0))
+
+queue = {start}
+
+while True:
+    t+=1
+    blizz = {((b[0][0]+t*b[1][0])%max_real, (b[0][1]+t*b[1][1])%max_imag) for b in blizzards}
+    positions = {(x+dx,y+dy) for dx,dy in directions for x,y in queue}
+    queue = positions-blizz-walls
+
+    if end in queue:
+        # question 1
+        print(t)
+        break
+
+queue = {end}
+restart = False
+end_2 = start
+
+while True:
+    t+=1
+    blizz = {((b[0][0]+t*b[1][0])%max_real, (b[0][1]+t*b[1][1])%max_imag) for b in blizzards}
+    positions = {(x+dx,y+dy) for dx,dy in directions for x,y in queue}
+    queue = positions-blizz-walls
+
+    if end_2 in queue:
+        if restart:
+            # question 2
+            print(t)
+            break
+        restart = True
+        queue = {end_2}
+        end_2 = end    
+```
+
+    228
+    723
+
+
+## Day 25
+
+
+```python
+with open('data/day25.txt') as data:
+        input = data.read()
+
+decimals = []
+equivs = {'2':2, '1':1, '0':0, '-':-1, '=':-2}
+
+for number in input.splitlines():
+    base = 1
+    decimal = 0
+    for char in number[::-1]:
+        decimal += base*equivs[char]
+        base *= 5
+    decimals.append(decimal)
+decimal_sum = sum(decimals)
+
+base = 1
+negative_possible = 0
+while base<decimal_sum:
+    negative_possible-=base*2
+    base *= 5
+
+if base-negative_possible>decimal_sum:
+    base /= 5
+
+snafu = ''
+while base > 0.9:
+    min_dist = 10**20
+    for x in [2, 1, 0, -1, -2]:
+        if abs(decimal_sum-x*base)<min_dist:
+            current_letter = str(x)
+            min_dist = abs(decimal_sum-x*base)
+
+    decimal_sum-=int(current_letter)*base
+    if current_letter=='-1':
+        current_letter='-'
+    elif current_letter=='-2':
+        current_letter='='
+    snafu+=current_letter
+    base /= 5
+
+# question 1
+print(snafu)
+```
+
+    20==1==12=0111=2--20
+
+
+
+```python
+base = 1
+decimal = 0
+for char in snafu[::-1]:
+    decimal += base*equivs[char]
+    base *= 5
+decimal
+```
+
+
+
+
+    36332109854235
+
 
